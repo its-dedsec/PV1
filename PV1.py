@@ -729,72 +729,6 @@ class OpenVASScanner(ScannerIntegration):
                 results.append(result)
         
         return results
-
-
-class QualysScanner(ScannerIntegration):
-    """Simulated Qualys scanner integration."""
-    
-    def __init__(self):
-        super().__init__("QualysGuard")
-    
-    def scan_asset(self, asset: Asset) -> List[Dict]:
-        """Simulate scanning a single asset with Qualys."""
-        # Simulate scan duration
-        scan_duration = random.uniform(0.1, 0.5)
-        time.sleep(scan_duration)
-        
-        # Generate between 0-5 findings with 80% probability of at least one
-        findings_count = random.choices(
-            [0, 1, 2, 3, 4, 5], 
-            weights=[0.2, 0.3, 0.2, 0.1, 0.1, 0.1], 
-            k=1
-        )[0]
-        
-        results = []
-if findings_count > 0:
-            # Qualys is good at finding these vulnerability types
-            weighted_categories = [
-                VulnerabilityCategory.WEAK_AUTHENTICATION,
-                VulnerabilityCategory.OUTDATED_SOFTWARE,
-                VulnerabilityCategory.MISSING_PATCH, 
-                VulnerabilityCategory.INFORMATION_DISCLOSURE,
-                VulnerabilityCategory.DEFAULT_CREDENTIALS,
-                VulnerabilityCategory.MISCONFIGURATION
-            ]
-            
-            # Generate findings
-            categories = random.choices(weighted_categories, k=findings_count)
-            
-            for category in categories:
-                name = random.choice(SimulatedDataGenerator.VULNERABILITY_NAMES[category])
-                cvss = SimulatedDataGenerator._generate_cvss_for_category(category)
-                
-                # Format in Qualys-like structure
-                qid = random.randint(10000, 99999)
-                result = {
-                    "qid": qid,
-                    "title": name,
-                    "severity": VulnerabilitySeverity.from_cvss(cvss).value,
-                    "category": category.value,
-                    "description": SimulatedDataGenerator._generate_description(name, category, asset),
-                    "solution": random.choice(REMEDIATION_DATABASE.get(category, ["Update system"])),
-                    "cvss_base": cvss,
-                    "asset": {
-                        "hostname": asset.hostname,
-                        "ip": asset.ip_address,
-                        "os": asset.os
-                    },
-                    "result": f"Vulnerability {name} detected",
-                    "first_found": (datetime.datetime.now() - datetime.timedelta(days=random.randint(1, 30))).isoformat(),
-                    "last_found": datetime.datetime.now().isoformat(),
-                    "times_found": random.randint(1, 10),
-                    "scanner": self.name
-                }
-                results.append(result)
-        
-        return results
-
-
 # =============================================================================
 # VULNERABILITY PROCESSING AND ENRICHMENT
 # =============================================================================
@@ -1398,7 +1332,6 @@ def run_streamlit_app():
                     st.session_state.scanners = [
                         NessusScanner(),
                         OpenVASScanner(),
-                        QualysScanner()
                     ]
                     
                     # Create other components
@@ -1475,46 +1408,46 @@ def run_streamlit_app():
             "Reports"
         ])
         
-with tab1:
-        # Dashboard view
-        st.header("Vulnerability Dashboard")
-        
-        # Summary metrics
-        col1, col2, col3, col4 = st.columns(4)
-        
-        total_vulns = len(st.session_state.vulnerabilities)
-        high_critical_vulns = sum(1 for v in st.session_state.vulnerabilities 
-                                if v.severity in [VulnerabilitySeverity.HIGH, VulnerabilitySeverity.CRITICAL])
-        
-        with col1:
-            st.metric("Total Assets", len(st.session_state.assets))
-        
-        with col2:
-            st.metric("Total Vulnerabilities", total_vulns)
-        
-        with col3:
-            st.metric("High/Critical Vulnerabilities", high_critical_vulns)
-        
-        with col4:
-            if st.session_state.anomalies:
-                st.metric("Anomalous Findings", len(st.session_state.anomalies))
-            else:
-                st.metric("Anomalous Findings", "N/A")
-        
-        # Charts for visual representation
-        st.subheader("Vulnerabilities by Severity")
-        severity_counts = {severity.name: 0 for severity in VulnerabilitySeverity}
-        for vuln in st.session_state.vulnerabilities:
-            severity_counts[vuln.severity.name] += 1
-        severity_df = pd.DataFrame(list(severity_counts.items()), columns=["Severity", "Count"])
-        st.bar_chart(severity_df, x="Severity", y="Count")
-                
-        st.subheader("Vulnerabilities by Category")
-        category_counts = {category.name: 0 for category in VulnerabilityCategory}
-        for vuln in st.session_state.vulnerabilities:
-            category_counts[vuln.category.name] += 1
-        category_df = pd.DataFrame(list(category_counts.items()), columns=["Category", "Count"])
-        st.bar_chart(category_df, x="Category", y="Count")
+    with tab1:
+            # Dashboard view
+            st.header("Vulnerability Dashboard")
+            
+            # Summary metrics
+            col1, col2, col3, col4 = st.columns(4)
+            
+            total_vulns = len(st.session_state.vulnerabilities)
+            high_critical_vulns = sum(1 for v in st.session_state.vulnerabilities 
+                                    if v.severity in [VulnerabilitySeverity.HIGH, VulnerabilitySeverity.CRITICAL])
+            
+            with col1:
+                st.metric("Total Assets", len(st.session_state.assets))
+            
+            with col2:
+                st.metric("Total Vulnerabilities", total_vulns)
+            
+            with col3:
+                st.metric("High/Critical Vulnerabilities", high_critical_vulns)
+            
+            with col4:
+                if st.session_state.anomalies:
+                    st.metric("Anomalous Findings", len(st.session_state.anomalies))
+                else:
+                    st.metric("Anomalous Findings", "N/A")
+            
+            # Charts for visual representation
+            st.subheader("Vulnerabilities by Severity")
+            severity_counts = {severity.name: 0 for severity in VulnerabilitySeverity}
+            for vuln in st.session_state.vulnerabilities:
+                severity_counts[vuln.severity.name] += 1
+            severity_df = pd.DataFrame(list(severity_counts.items()), columns=["Severity", "Count"])
+            st.bar_chart(severity_df, x="Severity", y="Count")
+                    
+            st.subheader("Vulnerabilities by Category")
+            category_counts = {category.name: 0 for category in VulnerabilityCategory}
+            for vuln in st.session_state.vulnerabilities:
+                category_counts[vuln.category.name] += 1
+            category_df = pd.DataFrame(list(category_counts.items()), columns=["Category", "Count"])
+            st.bar_chart(category_df, x="Category", y="Count")
 
     with tab2:
         # Vulnerability list view
